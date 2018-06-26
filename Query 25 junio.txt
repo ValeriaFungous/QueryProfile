@@ -1,0 +1,73 @@
+SELECT
+  ClubPremierID,
+  UserID,
+  SessionID,
+  TransactionID,
+  ProductName,
+  SUM (ProductRevenue),
+  SUM (Quantity),
+  PurchasePlace
+FROM (
+  SELECT
+    ClubPremierID,
+    FullvisitorIDX AS UserID,
+    SessionIDX AS SessionID,
+    TransactionID,
+    ProductName,
+    SUM(ProductRevenue)/1000000 AS ProductRevenue,
+    SUM(Quantity) AS Quantity
+  FROM (
+    SELECT
+      hits.item.transactionId AS TransactionID,
+      FullvisitorID AS FullvisitorIDX,
+      visitId AS SessionIDX,
+      SUM(hits.product.productRevenue ) AS ProductRevenue,
+      SUM(hits.product.productQuantity) AS quantity,
+      hits.product.v2ProductName AS ProductName
+    FROM (TABLE_DATE_RANGE([aeromexico-fb-project:45601781.ga_sessions_], TIMESTAMP('2018-02-27'), TIMESTAMP('2018-02-28')))
+    WHERE
+      hits.product.productRevenue > 0
+    GROUP BY
+      TransactionID,
+      FullvisitorIDX,
+      SessionIDX,
+      ProductName) AS x
+  LEFT JOIN (
+    SELECT
+      customdimensions.value AS ClubPremierID,
+      FullvisitorID AS FullvisitorIDY,
+      visitId AS SessionIDY
+    FROM (TABLE_DATE_RANGE([aeromexico-fb-project:45601781.ga_sessions_], TIMESTAMP('2018-02-27'), TIMESTAMP('2018-02-28')))
+    WHERE
+      Customdimensions.index=84) AS y
+  ON
+    x.FullvisitorIDX = y.FullvisitorIDY
+    AND x.SessionIDX = y.SessionIdY
+  WHERE
+    ClubPremierID LIKE '%'
+  GROUP BY
+    TransactionID,
+    ClubPremierID,
+    UserID,
+    SessionID,
+    ProductName) AS CP
+LEFT JOIN (
+  SELECT
+    [hits.item.transactionId] AS TransactionIdZ,
+    [hits.customDimensions.value] AS PurchasePlace
+  FROM (TABLE_DATE_RANGE([aeromexico-fb-project:45601781.ga_sessions_], TIMESTAMP('2018-02-27'), TIMESTAMP('2018-02-28')))
+  WHERE
+    hits.customDimensions.index = 32
+    AND totals.totalTransactionRevenue > 0
+    AND hits.item.transactionId != "null") AS TRANS
+ON
+  CP.TransactionID = TRANS.TransactionIdZ
+WHERE
+  ClubPremierID LIKE '%'
+GROUP BY
+  ClubPremierID,
+  UserID,
+  SessionID,
+  TransactionID,
+  ProductName,
+  PurchasePlace
